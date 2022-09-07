@@ -1,0 +1,29 @@
+#!/bin/bash
+# Author    : Adrien Colombier
+# File      : install
+# Updated   : September 6 2022
+ 
+################################
+#                              #
+#     WITCO CLI INSTALLER      #
+#                              #
+################################
+
+if [ "$OSTYPE" == "darwin21" ]; then
+    echo "MACOS detected:"
+    brew install gh
+    sudo cp witco /usr/local/bin/
+else
+    echo "NOT MACOS"
+fi
+
+if [ "$OSTYPE" == "linux-gnu" ]; then
+    echo "LINUX detected:"
+    curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg \
+    && sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg \
+    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null \
+    && sudo apt update \
+    && sudo apt install gh -y
+    sudo apt update
+    sudo apt install gh
+fi

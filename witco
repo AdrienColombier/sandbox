@@ -1,0 +1,373 @@
+#!/bin/bash
+# Author    : Adrien Colombier
+# File      : witco
+# Updated   : September 6 2022
+
+################################
+#                              #
+#          WITCO  CLI          #
+#                              #
+################################
+
+
+################################
+#                              #
+#       GLOBAL FUNCTIONS       #
+#                              #
+################################
+
+function isCurrentFolderARepository() {
+    if [ -d .git ]; then
+        echo -e "\x1B[32mCurrent folder is a git repository "
+    else
+        echo -e "\x1B[31mError: Current folder is not a git repository"
+
+        exit 1
+    fi
+}
+
+
+################################
+#                              #
+#        WITCO FUNCTIONS       #
+#                              #
+################################
+
+# Displaying help information on how to use witco cli
+function help() {
+    echo -e "\x1B[35mUsage: $0 (version: <1.0>)"
+    echo -e "\x1B[33mExpected argument: [command] [options]"
+    echo -e "\x1B[36mList of existing commands:\x1B[39m"
+    for i in "${commands[@]}"
+    do : 
+        echo -e "\t\x1B[36m$i\x1B[39m"
+    done
+
+}
+
+# Displaying the current witco cli version
+function version() {
+    echo -e "\x1B[35mWitco cli (version: <1.0>)\x1B[39m"
+}
+
+# Create a local fix branch base on Jira ticket number and description passed as parameter and set your current branch to this newly created branch
+function create-fix-branch() {
+    numberOfArgument=$(($#-1))
+    if [ $# -ne 3 ]; then
+        echo -e "\x1B[35mUsage: $0 $1 (version: <1.0>)"
+        echo -e "\x1B[31mError: Expected 2 arguments got $numberOfArgument"
+        echo -e "\x1B[33mExpected argument: Branch number"
+        echo -e "\x1B[33mExpected argument: Branch description"
+        echo -e "\x1B[36mExample: $0 $1 12787 Incorrect_scroll_behavior_in_policy_settings\x1B[39m"
+
+        exit 1
+    fi
+
+    # Checking if current folder is a repository
+    isCurrentFolderARepository
+
+    # Checking the validity of the first argument
+    if [[ $2 =~ [^0-9] ]]; then
+        echo -e "\x1B[35mUsage: $0 $1 (version: <1.0>)"
+        echo -e "\x1B[31mError: Expected number as argument got $2"
+        echo -e "\x1B[36mExample: $0 $1 12787 Incorrect_scroll_behavior_in_policy_settings\x1B[39m"
+
+        exit 1
+    fi
+
+    branch="fix/MBPRO-$2_$3"
+    git checkout -b $branch
+    echo -e "\x1B[32mSuccessfuly creating fix branch: \x1B[36m$branch \x1B[32m!\x1B[39m"
+}
+
+# Create a local feature branch base on Jira ticket number and description passed as parameter and set your current branch to this newly created branch
+function create-feat-branch() {
+    numberOfArgument=$(($#-1))
+    if [ $# -ne 3 ]; then
+        echo -e "\x1B[35mUsage: $0 $1 (version: <1.0>)"
+        echo -e "\x1B[31mError: Expected 2 arguments got $numberOfArgument"
+        echo -e "\x1B[33mExpected argument: Branch number"
+        echo -e "\x1B[33mExpected argument: Branch description"
+        echo -e "\x1B[36mExample: $0 $1 12787 Incorrect_scroll_behavior_in_policy_settings\x1B[39m"
+
+        exit 1
+    fi
+
+    # Checking if current folder is a repository
+    isCurrentFolderARepository
+
+    # Checking the validity of the first argument
+    if [[ $2 =~ [^0-9] ]]; then
+        echo -e "\x1B[35mUsage: $0 $1 (version: <1.0>)"
+        echo -e "\x1B[31mError: Expected number as argument got $2"
+        echo -e "\x1B[36mExample: $0 $1 12787 Incorrect_scroll_behavior_in_policy_settings\x1B[39m"
+
+        exit 1
+    fi
+
+    branch="feat/MBPRO-$2_$3"
+    git checkout -b $branch
+    echo -e "\x1B[32mSuccessfuly creating feat branch: \x1B[36m$branch \x1B[32m!\x1B[39m"
+}
+
+# Delete local branch matching the Jira ticket number passed in argument
+function delete-branches() {
+    numberOfArgument=$(($#-1))
+    if [ $# -ne 2 ]; then
+        echo -e "\x1B[35mUsage: $0 $1 (version: <1.0>)"
+        echo -e "\x1B[31mError: Expected 1 argument got $numberOfArgument"
+        echo -e "\x1B[33mExpected argument: Branch number"
+        echo -e "\x1B[36mExample: $0 $1 12787\x1B[39m"
+
+        exit 1
+    fi
+
+    # Checking if current folder is a repository
+    isCurrentFolderARepository
+
+    # Checking the validity of arguments
+    if [[ $2 =~ [^0-9] ]]; then
+        echo -e "\x1B[35mUsage: $0 $1 (version: <1.0>)"
+        echo -e "\x1B[31mError: Expected number as argument got $2"
+        echo -e "\x1B[36mExample: $0 $1 12787\x1B[39m"
+
+        exit 1
+    fi
+
+    branch=$(git branch 2>/dev/null | grep $2)
+    firstChar=${branch:0:1}
+
+    # Check if branch to delete is your current one
+    if [ "$firstChar" == "*" ]; then
+        echo -e "\x1B[35mUsage: $0 $1 (version: <1.0>)"
+        echo -e "\x1B[31mError: Can't delete current local branch, switch branch before"
+        echo -e "\x1B[36mExample: $0 $1 12787\x1B[39m"
+
+        exit 1
+    fi
+
+    # Checking if the branch exist
+    if [ -z "$branch" ]; then
+        echo -e "\x1B[35mUsage: $0 $1 (version: <1.0>)"
+        echo -e "\x1B[31mError: Invalid branch number, no local branch matching $2\x1B[39m"
+
+        exit 1
+    fi
+
+    git branch -D $branch
+    echo -e "\x1B[32mSuccessfuly deleting branch(es) !\x1B[39m"
+}
+
+
+function create-pr() {
+    paramIndex=0
+    params=( "$@" )
+    paramFlag=0
+    branch="--base develop"
+    reviewer=""
+
+    # Treats the case when we have no arguments and we just want to create a very basic pr from our current branch to develop
+    if [ $# -eq 1 ]; then
+        #gh pr create --base develop
+        #gh pr view | grep "https"
+        return
+    fi
+
+    # Loop over the parameters to detects options
+    for i in "$@"
+    do
+        if [[ $((paramIndex%2)) -eq 0 ]]; then
+            ((paramIndex=paramIndex+1))
+            continue
+        fi
+        
+        # Check param duplication for branch option
+        if [ "$i" == "-b" ] && [[ $((paramFlag & 1)) -eq 1 ]]; then
+            echo -e "\x1B[31mError: Invalid parameter multiple branch name (-b) found\x1B[39m"
+    
+            exit 1
+        fi
+
+        # Check param duplication for reviewer options
+        if [ "$i" == "-r" ] && [[ $((paramFlag & 2)) -eq 2 ]]; then
+            echo -e "\x1B[31mError: Invalid parameter multiple reviewer option (-r) found\x1B[39m"
+    
+            exit 1
+        fi
+    
+        if [ "$i" == "-b" ]; then
+            # build option for branch
+            branch="--base ${params[$paramIndex+1]}"
+            ((paramFlag=paramFlag+1))
+        fi
+
+        if [ "$i" == "-r" ]; then
+            # build reviewer option
+            reviewer="--reviewer ${params[$paramIndex+1]}"
+            ((paramFlag=paramFlag+2))
+        fi
+    ((paramIndex=paramIndex+1))
+    done
+
+    # Building the pull request
+    #echo -e "gh pr create $branch $reviewer\x1B[39m"
+    gh pr create $branch $reviewer
+    gh pr view | grep "https"
+}
+
+# Add all local diff to the current branch, commit the changes and push them to the remote branch
+function update-work-on-branch() {
+    numberOfArgument=$(($#-1))
+    if [ $# -lt 3 ]; then
+        echo -e "\x1B[35mUsage: $0 $1 (version: <1.0>)"
+        echo -e "\x1B[31mError: Expected 2 arguments got $numberOfArgument"
+        echo -e "\x1B[33mExpected argument: Module name"
+        echo -e "\x1B[33mExpected argument: Commit message"
+        echo -e "\x1B[36mExample: $0 $1 MyOrganization 'Fixing background color using css var'\x1B[39m"
+
+        exit 1
+    fi
+
+    # Checking if current folder is a repository
+    isCurrentFolderARepository
+
+    branch=$(git branch 2>/dev/null | grep '^*' | sed 's/* //')
+    ticketNumber=$(echo $branch | sed 's/\//_/g' | cut -d '_' -f 2)
+    commitMessage="Fix ($2): $ticketNumber"
+    argumentIndex=0
+
+    # Build commit message
+    for word in $@
+    do
+        if [[ argumentIndex -gt 1 ]]; then
+            commitMessage="${commitMessage} $word"
+        fi
+        ((argumentIndex=argumentIndex+1))
+    done
+   
+    git add .
+    echo -e "\x1B[32mSuccessfuly adding changes !\x1B[39m"
+    git commit -m "$commitMessage"
+    echo -e "\x1B[32mCommit message: \x1B[36m\"$commitMessage\" \x1B[32m!\x1B[39m"
+    git push origin $branch
+    echo -e "\x1B[32mSuccessfuly pushing changes to remote branch !\x1B[39m"
+}
+
+# Change your current local branch to the develop one, pulling changes and updating submodules
+function go-to-dev() {
+    numberOfArgument=$(($#-1))
+
+    # Checking the numbers of arguments
+    if [ $# -ne 1 ]; then
+        echo -e "\x1B[35mUsage: $0 $1 (version: <1.0>)"
+        echo -e "\x1B[31mError: Expected 0 argument got $numberOfArgument"
+        echo -e "\x1B[36mExample: $0 $1\x1B[39m"
+
+        exit 1
+    fi
+
+    # Checking if current folder is a repository
+    isCurrentFolderARepository
+
+    git checkout develop
+    git submodule update
+    echo -e "\x1B[32mSuccessfuly switching to \x1B[36mdevelop \x1B[32mbranch !\x1B[39m"
+}
+
+# Change your current local branch to the previous one you were in and updating submodules
+function go-to-last-branch() {
+    numberOfArgument=$(($#-1))
+
+    # Checking the numbers of arguments
+    if [ $# -ne 1 ]; then
+        echo -e "\x1B[35mUsage: $0 $1 (version: <1.0>)"
+        echo -e "\x1B[31mError: Expected 0 argument got $numberOfArgument"
+        echo -e "\x1B[36mExample: $0 $1\x1B[39m"
+
+        exit 1
+    fi
+
+    # Checking if current folder is a repository
+    isCurrentFolderARepository
+
+    git checkout -
+    git submodule update
+    echo -e "\x1B[32mSuccessfuly switching to previous branch !\x1B[39m"
+}
+
+# Change your current local branch to the first one matching the Jira ticket number passed in argument and updating submodules
+function change-to-branch() {
+    numberOfArgument=$(($#-1))
+    if [ $# -ne 2 ]; then
+        echo -e "\x1B[35mUsage: $0 $1 (version: <1.0>)"
+        echo -e "\x1B[31mError: Expected 1 argument got $numberOfArgument"
+        echo -e "\x1B[33mExpected argument: Branch number"
+        echo -e "\x1B[36mExample: $0 $1 12787\x1B[39m"
+
+        exit 1
+    fi
+
+    # Checking if current folder is a repository
+    isCurrentFolderARepository
+
+    # Checking the validity of arguments
+    if [[ $2 =~ [^0-9] ]]; then
+        echo -e "\x1B[35mUsage: $0 $1 (version: <1.0>)"
+        echo -e "\x1B[31mError: Expected number as argument got $2"
+        echo -e "\x1B[36mExample: $0 $1 12787\x1B[39m"
+
+        exit 1
+    fi
+
+    branch=$(git branch 2>/dev/null | grep $1)
+
+    # Checking if the branch exist
+    if [ -z "$branch" ]; then
+        echo -e "\x1B[35mUsage: $0 $1 (version: <1.0>)"
+        echo -e "\x1B[31mError: Invalid branch number, no local branch matching $2\x1B[39m"
+
+        exit 1
+    fi
+
+    git checkout $branch
+    git submodule update
+    echo -e "\x1B[32mSuccessfuly switching to \x1B[36m$branch \x1B[32m!\x1B[39m"
+
+}
+
+
+################################
+#                              #
+#           VARIABLES          #
+#                              #
+################################
+
+# Variables assertion
+commands=("--help" "--version" "create-fix-branch" "create-feat-branch" "delete-branches" "create-pr" "update-work-on-branch" "go-to-dev" "go-to-last-branch" "change-to-branch")
+functions=(help version create-fix-branch create-feat-branch delete-branches create-pr update-work-on-branch go-to-dev go-to-last-branch change-to-branch)
+indexOfFunctionsArray=0
+
+################################
+#                              #
+#            ENGINE            #
+#                              #
+################################
+
+# Checking if the witco cli atleast contain a command
+if [ $# -lt 1 ]; then
+    echo -e "\x1B[35mUsage: $0 (version: <1.0>)"
+    echo -e "\x1B[33mExpected argument: [command] [options]"
+    echo -e "\x1B[36mFor more details : witco --help\x1B[39m"
+
+    exit 1
+fi
+
+# Determine command to run
+for i in "${commands[@]}"
+do :
+    if [ "$i" == "$1" ];
+    then
+        ${functions[$indexOfFunctionsArray]} $@
+    fi
+    ((indexOfFunctionsArray=indexOfFunctionsArray+1))
+done
