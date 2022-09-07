@@ -168,8 +168,8 @@ function create-pr() {
 
     # Treats the case when we have no arguments and we just want to create a very basic pr from our current branch to develop
     if [ $# -eq 1 ]; then
-        #gh pr create --base develop
-        #gh pr view | grep "https"
+        gh pr create --base develop
+        gh pr view | grep "https"
         return
     fi
 
@@ -210,7 +210,6 @@ function create-pr() {
     done
 
     # Building the pull request
-    #echo -e "gh pr create $branch $reviewer\x1B[39m"
     gh pr create $branch $reviewer
     gh pr view | grep "https"
 }
@@ -233,7 +232,9 @@ function update-work-on-branch() {
 
     branch=$(git branch 2>/dev/null | grep '^*' | sed 's/* //')
     ticketNumber=$(echo $branch | sed 's/\//_/g' | cut -d '_' -f 2)
-    commitMessage="Fix ($2): $ticketNumber"
+    branchType=$(git branch 2>/dev/null | grep '^*' | sed 's/* //' | cut -d '/' -f 1)
+    branchType="$(tr '[:lower:]' '[:upper:]' <<< ${branchType:0:1})${branchType:1}"
+    commitMessage="$branchType ($2): $ticketNumber"
     argumentIndex=0
 
     # Build commit message
